@@ -2,8 +2,7 @@
 	       #:export (new-builder
 			  register-task
 			  fetch
-			  mark-as-dirty
-			  pretty-print))
+			  mark-as-dirty))
 
 (use-modules (rnrs base)
 	     (rnrs hashtables)
