@@ -231,3 +231,46 @@
     ; |> A1  <|
     ; * - dirty
     ))
+
+(test-group
+  "strings as keys"
+  (let ([bctx (new-builder)])
+    (define call-fa 0)
+    (define fa-contents "a")
+    (define call-fb 0)
+    (define fb-contents "b")
+
+    (register-task
+      bctx
+      'file-contents
+      (lambda (bctx key)
+	(cond
+	  [(string=? key "a") (set! call-fa (+ call-fa 1))
+			      fa-contents]
+	  [(string=? key "b") (set! call-fb (+ call-fb 1))
+			      fb-contents]
+	  [else #f])))
+
+    (register-task
+      bctx
+      'concat
+      (lambda (bctx key)
+	(apply
+	  string-append
+	  (map (lambda (k) (fetch bctx 'file-contents (string k)))
+	       (string->list key)))))
+
+    (test-equal "ab" (fetch bctx 'concat "ab"))
+
+    (set! fa-contents "aa")
+    (test-equal "ab" (fetch bctx 'concat "ab"))
+
+    (mark-as-dirty bctx 'file-contents "a")
+    (test-equal "aab" (fetch bctx 'concat "ab"))
+    (test-eq 2 call-fa)
+
+    (set! fb-contents "bb")
+    (mark-as-dirty bctx 'file-contents "b")
+    (test-equal "aabb" (fetch bctx 'concat "ab"))
+    (test-eq 2 call-fa)
+    (test-eq 2 call-fb)))

@@ -184,7 +184,7 @@
   (let* ([assl (assq 'dep-graph bctx)]
 	 [querynode (assq query (cdr assl))])
     (if querynode
-      (let ([keynode (assq key (cdr querynode))])
+      (let ([keynode (assoc key (cdr querynode))])
 	(if keynode
 	  ; The key node already exists, return it.
 	  keynode
@@ -202,7 +202,7 @@
   (let* ([assl (assq 'dep-graph bctx)]
 	 [querynode (assq query (cdr assl))])
     (if querynode
-      (let ([keynode (assq key (cdr querynode))])
+      (let ([keynode (assoc key (cdr querynode))])
 	(if keynode
 	  ; The key node already exists, return it.
 	  keynode
