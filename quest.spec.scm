@@ -10,7 +10,7 @@
 
 (test-group
   "no dependencies tasks"
-  (let ([bctx (new-builder)])
+  (let ([bctx (make-builder)])
     (register-task bctx
                    'sprsh1
                    (lambda (bctx key)
@@ -28,7 +28,7 @@
 
 (test-group
   "linear dependencies tasks"
-  (let ([bctx (new-builder)])
+  (let ([bctx (make-builder)])
     (register-task bctx
                    'sprsh1
                    (lambda (bctx key)
@@ -60,7 +60,7 @@
 
 (test-group
   "tree-like dependencies tasks"
-  (let ([bctx (new-builder)])
+  (let ([bctx (make-builder)])
     (register-task bctx
                    'sprsh1
                    (lambda (bctx key)
@@ -93,7 +93,7 @@
 
 (test-group
   "recompute tasks"
-  (let ([bctx (new-builder)])
+  (let ([bctx (make-builder)])
     (define calls-a1 0)
     (define a1-value 10)
     (define calls-a2 0)
@@ -177,7 +177,7 @@
   ; B1     B2
   ; |       |
   ; |> A1  <|
-  (let ([bctx (new-builder)])
+  (let ([bctx (make-builder)])
     (define a1-value 10)
 
     (register-task bctx
@@ -234,7 +234,7 @@
 
 (test-group
   "strings as keys"
-  (let ([bctx (new-builder)])
+  (let ([bctx (make-builder)])
     (define call-fa 0)
     (define fa-contents "a")
     (define call-fb 0)

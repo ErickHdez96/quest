@@ -9,7 +9,7 @@ It memoizes every `(query. key)` pair to prevent rebuilding the same dependency 
 
 ```scheme
 ; Create a new Builder context to accummulate new tasks.
-(define bctx (new-builder))
+(define bctx (make-builder))
 
 ; Input value that may be changed from an outer entity.
 (define value-a1 10)
@@ -106,12 +106,12 @@ type Task = (-> Builder Key Value);
 
 ### Public functions
 
-* new-builder: `(-> Builder)`
+* make-builder: `(-> Builder)`
 
 Returns a new builder, takes no parameters.
 
 ```scheme
-(define bctx (new-builder))
+(define bctx (make-builder))
 ```
 * register-task: `(-> Builder Query (-> Builder Key Value) ())`
 

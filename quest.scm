@@ -1,5 +1,5 @@
 (define-module (quest)
-	       #:export (new-builder
+	       #:export (make-builder
 			  register-task
 			  fetch
 			  mark-as-dirty))
@@ -7,16 +7,17 @@
 (use-modules (rnrs base)
 	     (rnrs hashtables)
 	     (rnrs lists)
-	     (rnrs io ports))
+	     (rnrs io ports)
+	     (rnrs records syntactic))
 
-;; Creates a new default builder.
-(define (new-builder)
-  (list
+(define-record-type
+  builder
+  (fields
     ;; Tasks that the builder knows how to execute.
     ;; Association list from `query` to `executor`.
-    (cons 'tasks (list))
+    (mutable tasks)
     ;; Stack of currently executing tasks in the form '(query key).
-    (cons 'task-stack (list))
+    (mutable task-stack)
     ;; Acyclic graph of dependencies between the tasks.
     ;; Each node has an ordered list of children and a list of parents.
     ;;
@@ -46,7 +47,16 @@
     ;; Result: v | #f - Memoized result of the current task.
     ;; Init boolean - The node has been initialized.
     ;; ```
-    (cons 'dep-graph (list))))
+    (mutable dep-graph))
+  (protocol
+    (lambda (new)
+      (lambda ()
+	; tasks
+	(new '()
+	     ; task-stack
+	     '()
+	     ; dep-graph
+	     '())))))
 
 ;; Registers task `query` to `task`.
 ;;
@@ -64,7 +74,10 @@
 ;;				    v)
 ;;				())))
 (define (register-task bctx query task)
-  (append-element-assl bctx 'tasks query task))
+  (builder-tasks-set!
+    bctx
+    (cons (cons query task)
+	  (builder-tasks bctx))))
 
 ;; Runs the task `query` with `key`
 (define (fetch bctx query key)
@@ -121,41 +134,28 @@
       (for-each (lambda (dep) (mark-as-dirty bctx (car dep) (cdr dep)))
 		(cdr (assq 'parents (cdr key-node)))))))
 
-;; Appends the element `(key value)` to the association list `asslk`.
-(define (append-element-assl bctx asslk key value)
-  (let ([item (assq asslk bctx)])
-    (set-cdr! item
-	      (cons (list key value)
-		    (cdr item)))))
-
-;; Returns the item in the association list `asslk` associated to `key` or false.
-(define (find-item-assl bctx asslk key)
-  (let* ([assl (cdr (assq asslk bctx))]
-	 [value (assq key assl)])
-    (if value
-      (cadr value)
-      value)))
-
 ;; Pushes '(query . key) to the stack of currently executing tasks.
 (define (push-task bctx query key)
-  (let ([item (assq 'task-stack bctx)])
-    (set-cdr! item (cons (cons query key)
-			 (cdr item)))))
+  (builder-task-stack-set!
+    bctx
+    (cons (cons query key)
+	  (builder-task-stack bctx))))
 
 ;; Pops the last executed task from the stack.
 ;;
 ;; # Exceptions
 ;; * Throws an `assertion-violation` if the stack is empty.
 (define (pop-task bctx)
-  (let ([item (assq 'task-stack bctx)])
-    (when (null? (cdr item))
-      (assertion-violation 'pop-task
-			   "tried to pop from an empty task stask"))
-    (set-cdr! item (cddr item))))
+  (when (null? (builder-task-stack bctx))
+    (assertion-violation 'pop-task
+			 "tried to pop from an empty task stask"))
+  (builder-task-stack-set!
+    bctx
+    (cdr (builder-task-stack bctx))))
 
 ;; Returns the currently executing task '(query . key), or #f if none.
 (define (current-task bctx)
-  (let ([stack (cdr (assq 'task-stack bctx))])
+  (let ([stack (builder-task-stack bctx)])
     (if (null? stack)
       #f
       (car stack))))
@@ -181,8 +181,8 @@
 ;; # Exceptions
 ;; * Throws an `assertion-violation` if the node doesn't exist.
 (define (get-node bctx query key)
-  (let* ([assl (assq 'dep-graph bctx)]
-	 [querynode (assq query (cdr assl))])
+  (let* ([dep-graph (builder-dep-graph bctx)]
+	 [querynode (assq query dep-graph)])
     (if querynode
       (let ([keynode (assoc key (cdr querynode))])
 	(if keynode
@@ -199,8 +199,8 @@
 
 ;; Returns or inserts a new node for '(query key) and returns the key node.
 (define (get-or-insert-node bctx query key)
-  (let* ([assl (assq 'dep-graph bctx)]
-	 [querynode (assq query (cdr assl))])
+  (let* ([dep-graph (builder-dep-graph bctx)]
+	 [querynode (assq query dep-graph)])
     (if querynode
       (let ([keynode (assoc key (cdr querynode))])
 	(if keynode
@@ -213,8 +213,10 @@
 	    keynode)))
       ; The query node doesn't exist, create a new one and return the inner key node.
       (let ([querynode (new-query-key-node query key)])
-	(set-cdr! assl (cons querynode
-			     (cdr assl)))
+	(builder-dep-graph-set!
+	  bctx
+	  (cons querynode
+		dep-graph))
 	(cadr querynode)))))
 
 ;; Registers a dependency from `from (query key)` to `to (query key)`.
@@ -295,7 +297,9 @@
 
 ;; Returns the task associated with `query`
 (define (find-task bctx query)
-  (find-item-assl bctx 'tasks query))
+  (cond
+    [(assq query (builder-tasks bctx)) => cdr]
+    [else #f]))
 
 ;; Marks the node as unchanged. It was marked as dirty, but its value - after being recomputed -
 ;; remained the same.
