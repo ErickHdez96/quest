@@ -1,5 +1,5 @@
-(use-modules (srfi srfi-64)
-             (quest))
+(import (srfi srfi-64)
+	(quest))
 
 (test-runner-current (test-runner-simple))
 
